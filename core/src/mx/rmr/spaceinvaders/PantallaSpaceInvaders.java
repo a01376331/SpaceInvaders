@@ -2,16 +2,32 @@ package mx.rmr.spaceinvaders;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.InputProcessor;
+import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.g2d.ParticleEffect;
+import com.badlogic.gdx.graphics.g2d.ParticleEmitter;
+import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector3;
+import com.badlogic.gdx.scenes.scene2d.Stage;
+import com.badlogic.gdx.scenes.scene2d.ui.Image;
 import com.badlogic.gdx.utils.Array;
+import com.badlogic.gdx.utils.viewport.Viewport;
+
 
 class PantallaSpaceInvaders extends Pantalla{
 
     private final Juego juego;
     int COLUMNAS = 11;
     int RENGLONES = 5;
+
+    //particulas
+    private ParticleEffect sistemaParticulas;
+    private ParticleEmitter emisorFuego;
+
+    //pausa
+    private EscenaPausa escenaPausa;
+    private EstadoJuego estadoJuego = EstadoJuego.JUGANDO;
 
     //aliens
     private Array<Alien> arrAliens;
@@ -46,8 +62,20 @@ class PantallaSpaceInvaders extends Pantalla{
         crearAliens();
         crearNave();
         creatMarcador();
+        
+        crearParticulas();
 
         Gdx.input.setInputProcessor(new ProcesadorEntrada());
+    }
+
+    private void crearParticulas() {
+        sistemaParticulas = new ParticleEffect();
+        sistemaParticulas.load(Gdx.files.internal("fuego.p"), Gdx.files.internal(""));
+        Array<ParticleEmitter> emisores = sistemaParticulas.getEmitters();
+        emisorFuego = emisores.get(0);
+        emisores.get(0).setPosition(ANCHO/2, ALTO/2);
+        sistemaParticulas.start();
+
     }
 
     private void creatMarcador() {
@@ -82,7 +110,7 @@ class PantallaSpaceInvaders extends Pantalla{
 
         //ACTUALIZACIONES
 
-        actualizar(delta);
+        if(estadoJuego == EstadoJuego.JUGANDO) actualizar(delta);
 
         //DIBUJAR
         borrarPantalla(0, 0, 0);
@@ -98,6 +126,10 @@ class PantallaSpaceInvaders extends Pantalla{
 
         marcador.render(batch);
 
+        sistemaParticulas.draw(batch);
+
+        if(estadoJuego == EstadoJuego.PAUSADO) escenaPausa.draw();
+
         batch.end();
     }
 
@@ -106,6 +138,7 @@ class PantallaSpaceInvaders extends Pantalla{
         moverEnemigos(delta);
         moverBala(delta);
         probarColisiones();
+        sistemaParticulas.update(delta);
     }
 
     private void moverEnemigos(float delta) {
@@ -211,8 +244,14 @@ class PantallaSpaceInvaders extends Pantalla{
                 if (v.x >= ANCHO / 2) {
                     movimiento = Movimiento.DERECHA;
                 } else {
-                    movimiento = Movimiento.IZQUIERDA;
+//                    movimiento = Movimiento.IZQUIERDA;
+                    if(escenaPausa == null){
+                        escenaPausa = new EscenaPausa(vista, batch);
+                    }
+                    estadoJuego = EstadoJuego.PAUSADO;
+
                 }
+
             }
             return true;
         }
@@ -243,5 +282,29 @@ class PantallaSpaceInvaders extends Pantalla{
         DERECHA,
         IZQUIERDA,
         QUIETO
+    }
+
+    //ventana que se muestra cuando el usuario pausa la aplicacion
+    class EscenaPausa extends Stage{
+        public EscenaPausa(Viewport vista, SpriteBatch batch){
+            super(vista, batch);
+            Pixmap pixmap = new Pixmap((int)(ANCHO*0.7f), (int)(ALTO*0.8f), Pixmap.Format.RGBA8888);
+            pixmap.setColor(0, 0, 0, 0.5f);
+            pixmap.fillCircle(300, 300, 300);
+            Texture texturaCirculo = new Texture(pixmap);
+
+            Image imgCirculo = new Image(texturaCirculo);
+            imgCirculo.setPosition(ANCHO/2-pixmap.getWidth()/2, ALTO/2-pixmap.getHeight()/2);
+
+            this.addActor(imgCirculo);
+
+        }
+    }
+
+    private enum EstadoJuego {
+        JUGANDO,
+        PAUSADO,
+        GANO,
+        PERDIO
     }
 }
